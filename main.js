@@ -1,23 +1,25 @@
-console.log('main.js');
+console.log('CustomElement');
 
 class CustomElement extends HTMLElement {
-    getValue() {
-        return this.textInput.value;
-    }   
+    set value(v) {
+        this._value = v;
+    }
 
-    updateValue(e) {
-        console.log('onChange: ' + e);
-        this.value = e;
+    get value() {
+        return this._value;
+    }
+
+    updateValue(v) {
+        this._value = v;
+        this.linkedNode.setValue(this.value);
         this.updateView();
     }
 
     set link(id) {
-        console.log(id);
-        
-        this.linkedNode = document.getElementById(id);
-        this.linkedNode.hidden = true;
-        this.linkedNode.onchange = () => { this.update(this.linkedNode.value); }
-        this.updateValue(this.linkedNode.value);
+        this.linkedNode = Xrm.Portal.Form.get(id);
+        this.linkedNode.c[0].setAttribute('style', 'display:none;');
+        this.linkedNode.c[0].onchange = () => { this.update(this.linkedNode.getValue()); }
+        this.updateValue(this.linkedNode.getValue());
     }
 }
 
@@ -25,8 +27,11 @@ class CustomElement extends HTMLElement {
 // Create a class for the element
 class Increment extends CustomElement {
     updateView() {
-        this.linkedNode.value = this.value;
         this.textInput.value = this.value;
+    }
+
+    increment() {
+        this.updateValue(parseInt(this.value) + 1);
     }
 
     constructor() {
@@ -43,22 +48,12 @@ class Increment extends CustomElement {
         this.textInput = document.createElement('input');
         this.textInput.setAttribute('tabindex', 0);
         this.textInput.setAttribute('value', this.value ?? '');
+        this.textInput.onchange = () => this.updateValue(this.textInput.value);
 
         this.button = document.createElement('button');
         this.button.setAttribute('type', 'button');
         this.button.innerText = 'Increment';
-        this.button.onclick = () => {
-            this.updateValue(parseInt(this.value) + 1);
-        };
-
-        // Take attribute content and put it inside the info span
-        const text = this.getAttribute('data-text');
-        const controlId = this.getAttribute('data-control-id');
-
-        // this.linkedNode = document.getElementById(controlId);
-        // this.linkedNode.setAttribute('data-control-id', this.id);
-
-        this.textInput.onchange = () => { this.updateValue(this.textInput.value);};
+        this.button.onclick = () => this.increment();
 
         // Create some CSS to apply to the shadow dom
         const style = document.createElement('style');
@@ -79,15 +74,18 @@ class Increment extends CustomElement {
     }
 }
 
-// Define the new element
-customElements.define('increment-control', Increment);
+function registerComponent(tagName, type) {
+    customElements.define(tagName, type);
+}
 
 function replaceControl(id) {
     const pocCtrl = document.createElement('increment-control');
     pocCtrl.link = id;
-    document.getElementById(id).parentElement.append(pocCtrl);
+    Xrm.Portal.Form.get(id).c[0].parentElement.append(pocCtrl);
 }
 
 function showRootControl(id) {
     document.getElementById(id).hidden = false;
 }
+
+registerComponent('increment-control', Increment);
